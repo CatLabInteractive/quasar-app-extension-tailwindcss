@@ -17,11 +17,12 @@ module.exports = function (api) {
 
     const tailwindConfigFile = api.resolve.src('extensions/tailwindcss/tailwind.config.js');
 
+    // tailwind.config.js to see if we should set purge-css config ourselves
     let tailwindConfig = {};
     try {
         tailwindConfig = require(tailwindConfigFile);
     } catch (e) {
-        // no worries.
+        // no worries, perfectly fine.
     }
 
     let purgecssConfig;
@@ -30,6 +31,7 @@ module.exports = function (api) {
         api.resolve.src('**/*.vue'),
     ];
 
+    // purge config found; check if we need to alter any settings
     if (typeof(tailwindConfig.purge) !== 'undefined') {
         purgecssConfig = tailwindConfig.purge;
 
@@ -38,8 +40,15 @@ module.exports = function (api) {
         } else {
             purgecssConfig.content = purgecssConfig.content.map(api.resolve.src);
         }
+
+        // by default, only enable purge on production
+        if (typeof(purgecssConfig) === 'undefined') {
+            tailwindConfig.purge.enabled = api.ctx.prod;
+        }
     } else {
+        // use default purge config
         purgecssConfig = {
+            enabled: api.ctx.prod,
             content: purgecssContent
         };
     }
@@ -51,10 +60,6 @@ module.exports = function (api) {
             require('tailwindcss')(tailwindConfigFile),
             require('autoprefixer'),
         ];
-        if (api.ctx.prod && purgecssConfig.enabled !== false) {
-            const purgecss = require('@fullhuman/postcss-purgecss')(purgecssConfig)
-            plugins.push(purgecss);
-        }
 
         cfg.module
             .rule('tailwind')
